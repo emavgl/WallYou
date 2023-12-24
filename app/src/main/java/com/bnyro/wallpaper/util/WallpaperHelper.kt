@@ -3,6 +3,9 @@ package com.bnyro.wallpaper.util
 import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Paint
 import android.os.Build
 import android.util.DisplayMetrics
 import androidx.annotation.RequiresApi
@@ -60,7 +63,6 @@ object WallpaperHelper {
     private fun getResizedBitmap(bitmap: Bitmap, displayMetrics: DisplayMetrics): Bitmap {
         val screenWidth = displayMetrics.widthPixels
         val screenHeight = displayMetrics.heightPixels
-
         val bitmapWidth = bitmap.width.toFloat()
         val bitmapHeight = bitmap.height.toFloat()
 
@@ -70,19 +72,38 @@ object WallpaperHelper {
         val resizedBitmap = if (screenRatio > bitmapRatio) {
             getResizedBitmap(bitmap, screenWidth, (screenWidth * bitmapRatio).toInt())
         } else {
-            bitmap
+            getResizedBitmap(bitmap, (screenHeight / bitmapRatio).toInt(), screenHeight)
         }
-        
-        return resizedBitmap
+
+        val bitmapGapX = ((bitmap.width - screenWidth) / 2f).toInt()
+        val bitmapGapY = ((bitmap.height - screenHeight) / 2f).toInt()
+
+        // prevent crashes due to wrong aspect ratio
+        if (bitmapGapX <= 0 || bitmapGapY <= 0) return resizedBitmap
+
+        return runCatching {
+            Bitmap.createBitmap(
+                resizedBitmap,
+                bitmapGapX,
+                bitmapGapY,
+                screenWidth,
+                screenHeight
+            )
+        }.getOrDefault(resizedBitmap)
     }
 
+
     private fun getResizedBitmap(bitmap: Bitmap, newWidth: Int, newHeight: Int): Bitmap {
-        Bitmap scaledBitmap = Bitmap.createBitmap(newWidth, newHeight, Config.ARGB_8888)
-        float ratioX = newWidth / (float) bitmap.getWidth()
-        float ratioY = newHeight / (float) bitmap.getHeight()
-        Canvas canvas = new Canvas(scaledBitmap)
-        canvas.setMatrix(scaleMatrix)
-        canvas.drawBitmap(bitmap, 0, 0, new Paint(Paint.FILTER_BITMAP_FLAG))
+        val scaledBitmap = Bitmap.createBitmap(newWidth, newHeight, Bitmap.Config.ARGB_8888)
+        val ratioX = newWidth / bitmap.width
+        val ratioY = newHeight / bitmap.height
+
+        val scaleMatrix = Matrix()
+        scaleMatrix.setScale(ratioX.toFloat(), ratioY.toFloat(), 0F, 0F);
+
+        val canvas = Canvas(scaledBitmap)
+        canvas.setMatrix(scaleMatrix);
+        canvas.drawBitmap(bitmap, 0F, 0F, Paint(Paint.FILTER_BITMAP_FLAG))
         return scaledBitmap
     }
 }
