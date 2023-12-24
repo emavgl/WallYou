@@ -94,7 +94,7 @@ object WallpaperHelper {
             bitmap,
             newWidth,
             newHeight,
-            false
+            true
         )
     }
 }
